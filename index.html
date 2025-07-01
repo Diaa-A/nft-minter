@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>My NFT MVP</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/ethers/5.7.2/ethers.umd.min.js"></script>
+    <style>
+        body { font-family: Arial; max-width: 600px; margin: 50px auto; }
+        button { background: #007bff; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+        .container { text-align: center; }
+        .hidden { display: none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎫 My NFT Minter</h1>
+        
+        <div id="connect-section">
+            <p>Connect your wallet to start minting NFTs</p>
+            <button onclick="connectWallet()">Connect MetaMask</button>
+        </div>
+        
+        <div id="mint-section" class="hidden">
+            <p id="wallet-info"></p>
+            <h3>Mint Your NFT</h3>
+            <p>Price: 0.01 ETH</p>
+            <button onclick="mintNFT()">Mint NFT 🎨</button>
+            <p id="status"></p>
+        </div>
+    </div>
+
+    <script>
+        const CONTRACT_ADDRESS = "0x48ff75781eD72A33eE041321467cE96318B4b04B"; // UPDATE THIS!
+        const CONTRACT_ABI = [
+            "function mintNFT(address to, string memory tokenURI) public payable returns (uint256)",
+            "function totalSupply() public view returns (uint256)"
+        ];
+
+        let provider, signer, contract;
+
+        async function connectWallet() {
+            try {
+                if (!window.ethereum) {
+                    alert('Please install MetaMask!');
+                    return;
+                }
+
+                provider = new ethers.providers.Web3Provider(window.ethereum);
+                await provider.send("eth_requestAccounts", []);
+                signer = provider.getSigner();
+                
+                const address = await signer.getAddress();
+                const balance = await provider.getBalance(address);
+                
+                document.getElementById('wallet-info').innerHTML = 
+                    `Connected: ${address.slice(0,6)}...${address.slice(-4)}<br>
+                     Balance: ${ethers.utils.formatEther(balance).slice(0,6)} ETH`;
+                
+                contract = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+                
+                document.getElementById('connect-section').classList.add('hidden');
+                document.getElementById('mint-section').classList.remove('hidden');
+                
+            } catch (error) {
+                alert('Connection failed: ' + error.message);
+            }
+        }
+
+        async function mintNFT() {
+            try {
+                document.getElementById('status').textContent = 'Minting... Please confirm in MetaMask';
+                
+                const tx = await contract.mintNFT(
+                    await signer.getAddress(),
+                    "https://ipfs.io/ipfs/QmExample123", // Replace with real metadata
+                    { 
+                        value: ethers.utils.parseEther("0.01"),
+                        gasPrice: ethers.utils.parseUnits("5", "gwei") // Lower gas price
+                    }
+                );
+                
+                document.getElementById('status').textContent = 
+                    `Transaction sent! Hash: ${tx.hash.slice(0,10)}...`;
+                
+                await tx.wait();
+                document.getElementById('status').innerHTML = 
+                    `✅ NFT Minted Successfully!<br>Check your MetaMask wallet!`;
+                    
+            } catch (error) {
+                document.getElementById('status').textContent = 
+                    `❌ Error: ${error.message}`;
+            }
+        }
+    </script>
+</body>
+</html>
